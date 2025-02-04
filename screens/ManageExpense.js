@@ -1,34 +1,59 @@
-import { useLayoutEffect } from "react";
+import { useContext, useLayoutEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import IconButtton from "../ui/IconButtton";
 import { GlobalStyles } from "../components/styles";
 import Button from "../ui/Button";
+import { ExpensesContext } from "../store/expenses-context";
+import ExpenseForms from "../ManageExpense/ExpenseForms";
 
 function ManageExpense({ route, navigation }) {
+  const expenseCTX = useContext(ExpensesContext);
   const editedExpenseId = route.params?.expenseId;
   const isEditting = !!editedExpenseId;
 
+  const selectedExpense = expenseCTX.expenses.find((expense) => {
+    return expense.id === editedExpenseId;
+  });
+
   useLayoutEffect(() => {
-    navigation.setOption({
+    navigation.setOptions({
       title: isEditting ? "Edit Expense" : "Add Expense",
     });
   }, [navigation, isEditting]);
 
-  function deleteExpense() {}
+  function deleteExpense(id) {
+    expenseCTX.deleteExpense(id);
+    navigation.goBack();
+  }
+  function cancleHandler() {
+    navigation.goBack();
+  }
+  function confirmHandler(expenseData) {
+    if (isEditting) {
+      expenseCTX.updateExpense(editedExpenseId, expenseData);
+    } else {
+      expenseCTX.addExpense(expenseData);
+    }
+    navigation.goBack();
+  }
 
   return (
     <View style={styles.container}>
-      <View>
-        <Button></Button>
-      </View>
+      <ExpenseForms
+        submitButtonLabel={isEditting ? "Update" : "Add"}
+        onCancle={cancleHandler}
+        onSubmit={confirmHandler}
+        selectedExpense={selectedExpense}
+      />
+
       {isEditting && (
         <View style={styles.deleteContainer}>
           <IconButtton
             icon="trash"
             color={GlobalStyles.colors.error500}
             size={36}
-            onPress={deleteExpense}
-          />{" "}
+            onPress={() => deleteExpense(editedExpenseId)}
+          />
         </View>
       )}
     </View>
