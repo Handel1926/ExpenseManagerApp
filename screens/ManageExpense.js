@@ -1,12 +1,16 @@
-import { useContext, useLayoutEffect } from "react";
+import { useContext, useLayoutEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import IconButtton from "../ui/IconButtton";
 import { GlobalStyles } from "../components/styles";
-import Button from "../ui/Button";
 import { ExpensesContext } from "../store/expenses-context";
 import ExpenseForms from "../ManageExpense/ExpenseForms";
+import { storeExpense, updateExpense } from "../util/http";
+import LoadingOverlay from "../ui/LoadingOverlay";
+import ErrorOverlay from "../ui/ErrorOverlay";
 
 function ManageExpense({ route, navigation }) {
+  const [isFetching, setIsFetching] = useState(false);
+  const [error, setError] = useState();
   const expenseCTX = useContext(ExpensesContext);
   const editedExpenseId = route.params?.expenseId;
   const isEditting = !!editedExpenseId;
@@ -21,22 +25,48 @@ function ManageExpense({ route, navigation }) {
     });
   }, [navigation, isEditting]);
 
-  function deleteExpense(id) {
+  async function deleteExpense(id) {
     expenseCTX.deleteExpense(id);
-    navigation.goBack();
+    setIsFetching(true);
+    try {
+      await deleteExpense(id);
+      navigation.goBack();
+    } catch (error) {
+      setError("Failed to delete expense");
+      setIsFetching(false);
+    }
   }
   function cancleHandler() {
     navigation.goBack();
   }
-  function confirmHandler(expenseData) {
-    if (isEditting) {
-      expenseCTX.updateExpense(editedExpenseId, expenseData);
-    } else {
-      expenseCTX.addExpense(expenseData);
+  async function confirmHandler(expenseData) {
+    setIsFetching(true);
+    try {
+      if (isEditting) {
+        expenseCTX.updateExpense(editedExpenseId, expenseData);
+        await updateExpense(editedExpenseId, expenseData);
+      } else {
+        const id = await storeExpense(expenseData);
+        expenseCTX.addExpense({ ...expenseData, id: id });
+      }
+      navigation.goBack();
+    } catch (error) {
+      setError("Couldn't save data please check your Network and try again");
+      setIsFetching(false);
     }
-    navigation.goBack();
   }
 
+  function errorHandler() {
+    setError(null);
+  }
+
+  if (error && !isFetching) {
+    return <ErrorOverlay message={error} onConfirm={errorHandler} />;
+  }
+
+  if (isFetching) {
+    return <LoadingOverlay />;
+  }
   return (
     <View style={styles.container}>
       <ExpenseForms
